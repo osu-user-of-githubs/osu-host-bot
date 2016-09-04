@@ -37,8 +37,10 @@ public class AutoHost {
 		perms = new Permissions(settings.operatorIds);
 		
 		bancho = new BanchoClient(settings.username, settings.password, false, true);
+		
 		bancho.getCommandHandler().addExecutor(new CommandsGeneral(this));
 		bancho.getCommandHandler().addExecutor(new CommandsRoom(this, settings.osuApi));
+		
 		bancho.registerHandler(roomHandler = new RoomHandler(this));
 		bancho.registerHandler((Packet packet) -> {
 			if (packet instanceof PacketReceivingFinished) {
@@ -46,13 +48,14 @@ public class AutoHost {
 				MultiplayerHandler mp = bancho.getMultiplayerHandler();
 				mp.enableMultiplayer();
 				mp.createRoom(settings.roomName, settings.roomPassword, settings.roomSlots);
-				if (settings.freemodsEnabled)
+				//if (settings.freemodsEnabled)
 					mp.setFreeMods(true);
 			}
 			if (packet instanceof PacketRoomJoined) {
 				System.out.println("Room created!");
 			}
 		});
+		
 		
 		System.out.println("Running client...");
 		bancho.connect();

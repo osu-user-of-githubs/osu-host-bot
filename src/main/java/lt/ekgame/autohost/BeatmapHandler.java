@@ -49,6 +49,13 @@ public class BeatmapHandler {
 		return false;
 	}
 	
+	public boolean hasRequested(int userId){
+	for (Beatmap beatmap : beatmaps) {
+		if (beatmap.RequestedBy == userId)
+			return true;
+	}
+	return false;
+	}
 	public Beatmap nextBeatmap() {
 		if (current != null)
 			completed.add(current);
