@@ -92,7 +92,10 @@ public class CommandsRoom implements CommandExecutor {
 			AutoHost.instance.settings.maxDifficulty = Double.parseDouble(args.get(0));
 			bot.bancho.sendMessage(channel, "New maximum difficulty now is "+args.get(0)+"*");
 		}
-
+		if (label.equals("graveyard") && bot.perms.isOperator(userId)) {
+			AutoHost.instance.settings.allowGraveyard = !AutoHost.instance.settings.allowGraveyard;
+			bot.bancho.sendMessage(channel, "Graveyards maps allowed = "+AutoHost.instance.settings.allowGraveyard);
+		}
 		
 		if (label.equals("start") && bot.perms.isOperator(userId)) {
 			if (mp.isHost()) {
@@ -189,7 +192,7 @@ public class CommandsRoom implements CommandExecutor {
 				int bID = beatmap.getInt("beatmap_id");
 				String result = artist + " - " + title + " [ "+difficulty+" ] - [ "+rating+"* ]";
 				String result2 = "[http://osu.ppy.sh/b/"+bID+" Link]";
-				bot.bancho.sendMessage(channel,sender + ": "+result + " || " + result2);
+				//bot.bancho.sendMessage(channel,sender + ": "+result + " || " + result2);
 				
 				// BEATMAP FOUND >> ADD
 				getBeatmap(bID, (obje) -> {
@@ -217,7 +220,7 @@ public class CommandsRoom implements CommandExecutor {
 							String creator = obje.getString("creator");
 							String version = obje.getString("version");
 							String beatmapMD5 = obje.getString("file_md5");
-							Beatmap bp = new Beatmap(artist, title, version, creator, beatmapMD5, bID);
+							Beatmap bp = new Beatmap(artist, title, version, creator, beatmapMD5, bID, rating);
 							bp.RequestedBy = userId;
 							if (bot.beatmaps.inQueue(bp)) {
 								bot.bancho.sendMessage(channel, sender + ": This beatmap is already in the queue.");
@@ -288,7 +291,8 @@ public class CommandsRoom implements CommandExecutor {
 								String creator = obj.getString("creator");
 								String version = obj.getString("version");
 								String beatmapMD5 = obj.getString("file_md5");
-								Beatmap beatmap = new Beatmap(artist, title, version, creator, beatmapMD5, beatmapId);
+								String rating = BigDecimal.valueOf(Math.round( (obj.getDouble("difficultyrating")*100d) )/100d).toPlainString();
+								Beatmap beatmap = new Beatmap(artist, title, version, creator, beatmapMD5, beatmapId,rating);
 								if (bot.beatmaps.inQueue(beatmap)) {
 									bot.bancho.sendMessage(channel, sender + ": This beatmap is already in the queue.");
 								} else if (bot.beatmaps.recentlyPlayed(beatmap, 30)) {

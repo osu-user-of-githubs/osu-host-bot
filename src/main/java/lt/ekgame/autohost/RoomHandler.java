@@ -41,7 +41,7 @@ import lt.ekgame.beatmap_analyzer.utils.ScoreVersion;
 public class RoomHandler implements PacketHandler {
 	
 	public AutoHost bot;
-	public double scores[][] = new double[16][5];
+	public double scores[][] = new double[16][11];
 	private int slotsTaken;
 	public lt.ekgame.beatmap_analyzer.Beatmap currentBeatmap[] = new lt.ekgame.beatmap_analyzer.Beatmap[16];
 	public String modList[] = new String[16];
@@ -76,8 +76,9 @@ public class RoomHandler implements PacketHandler {
 		if (beatmap == null) {
 			bot.bancho.sendMessage("#multiplayer", "No more beatmaps in the queue. Use !add [link to beatmap] to add more beatmaps.");
 		} else {
-			bot.bancho.sendMessage("#multiplayer", String.format("Up next: %s - %s [%s] mapped by %s.", 
-					beatmap.getArtist(), beatmap.getTitle(), beatmap.getVersion(), beatmap.getCreator()));
+			String result2 = "[http://osu.ppy.sh/b/"+beatmap.getId()+" Link]";
+			bot.bancho.sendMessage("#multiplayer", String.format("Added %s - %s [%s] - [ %s* ] || "+ result2 +" || Mapped by %s",
+					beatmap.getArtist(), beatmap.getTitle(), beatmap.getVersion(), beatmap.getDiff(), beatmap.getCreator()));
 			  try {
 					RequestConfig defaultRequestConfig = RequestConfig.custom()
 						    .setSocketTimeout(10000)
@@ -98,22 +99,19 @@ public class RoomHandler implements PacketHandler {
 					BeatmapParser parser = new BeatmapParser();
 					lt.ekgame.beatmap_analyzer.Beatmap cbp = parser.parse(content);
 					for (int i = 0; i < 16; i++)  {
-						currentBeatmap[i] = cbp;
+						currentBeatmap[i] = cbp.applyMods(new Mods());
 					}
 					Performance perf = cbp.getPerformance(cbp.getMaxCombo(),0,0,0);
 					long ssNOMOD = ((long) perf.getPerformance());
-					lt.ekgame.beatmap_analyzer.Beatmap cbp2 = cbp;
-					lt.ekgame.beatmap_analyzer.Beatmap cbp3 = cbp;
-			  		lt.ekgame.beatmap_analyzer.Beatmap cbp4 = cbp;
+					lt.ekgame.beatmap_analyzer.Beatmap cbp2 = cbp.applyMods(new Mods(Mod.HIDDEN));
+					lt.ekgame.beatmap_analyzer.Beatmap cbp3 = cbp.applyMods(new Mods(Mod.HARDROCK));
+			  		lt.ekgame.beatmap_analyzer.Beatmap cbp4 = cbp.applyMods(new Mods(Mod.HIDDEN,Mod.HARDROCK));
 
-					cbp2 = cbp2.applyMods(new Mods(Mod.HIDDEN));
-					Performance perf2 = cbp2.getPerformance(cbp.getMaxCombo(),0,0,0);
+					Performance perf2 = cbp2.getPerformance(cbp2.getMaxCombo(),0,0,0);
 					long ssHIDDEN = ((long) perf2.getPerformance());
-					cbp3 = cbp3.applyMods(new Mods(Mod.HARDROCK));
-					Performance perf3 = cbp3.getPerformance(cbp.getMaxCombo(),0,0,0);
+					Performance perf3 = cbp3.getPerformance(cbp3.getMaxCombo(),0,0,0);
 					long ssHR = ((long) perf3.getPerformance());
-					cbp4 = cbp4.applyMods(new Mods(Mod.HIDDEN,Mod.HARDROCK));
-					Performance perf4 = cbp4.getPerformance(cbp.getMaxCombo(),0,0,0);
+					Performance perf4 = cbp4.getPerformance(cbp4.getMaxCombo(),0,0,0);
 					long ssHDHR = ((long) perf4.getPerformance());
 					bot.bancho.sendMessage("#multiplayer","NOMOD: "+ssNOMOD+"pp || HD: "+ssHIDDEN+"pp || HR: "+ssHR+"pp || HDHR: "+ssHDHR+"pp");
 					
@@ -160,22 +158,33 @@ public class RoomHandler implements PacketHandler {
 				  //List<Mod> mods = Mod.getMods(mp.getRoom().slotMods[update.byte1]);
 				  
 			  int MaxComboPossible = currentBeatmap[update.byte1].getMaxCombo();			  
-			  int MaxCombo = update.short1+update.short2+update.short3+update.short4+update.short5+update.short6;
 			  int MaxComboHit = update.short7;
-			  int accok = update.short1+update.short4;
-			  int accmeh = update.short2+update.short5;
+			  int accok = update.short1;
+			  int accmeh = update.short2;
 			  int accf = update.short3;
-			  int accmiss = update.short8;
+			  int accmiss = update.short6;
+			  int totalhits = accok+accmeh+accf+accmiss;
+			  double acc = ((accok*6 + accmeh*2 + accf)/((double)totalhits*6));
 			  Performance perf =  currentBeatmap[update.byte1].getPerformance(MaxComboHit,accmeh,accf,accmiss);
 			  
 			  //System.out.println(mp.getRoom().slotMods[update.byte1]); // 0-NOMOD NF-1 8-HD 16-HR 24-HDHR 
-
+				for (int i = 0; i < 16; i++)  {
+					if (scores[i][0] == ((int) mp.getRoom().slotId[update.byte1])){
+					Arrays.fill(scores[i],0);
+					};				
+				}
 			  
 			  scores[update.byte1][0] = mp.getRoom().slotId[update.byte1];
 			  scores[update.byte1][1] = update.integer2;
 			  scores[update.byte1][2] = update.byte1;
-			  scores[update.byte1][3] = (long) (perf.getAccuracy()*100);
-			  scores[update.byte1][4] = (long) perf.getPerformance();
+			  scores[update.byte1][3] = acc;
+			  scores[update.byte1][4] = perf.getPerformance();
+			  scores[update.byte1][5] = accok;
+			  scores[update.byte1][6] = accmeh;
+			  scores[update.byte1][7] = accf;
+			  scores[update.byte1][8] = accmiss;
+			  scores[update.byte1][9] = MaxComboHit;
+			  scores[update.byte1][10] = MaxComboPossible;
 			  
 			  Arrays.sort(scores, new Comparator<double[]>() {				  
 				  public int compare(double[] o1, double[] o2) { 
@@ -233,7 +242,7 @@ public class RoomHandler implements PacketHandler {
 			resetVoteSkip();
 			mp.setBeatmap(bot.beatmaps.nextBeatmap());
 			onBeatmapChange();
-			String IDs[] = new String[3];
+			String IDs[] = new String[4];
 			
 		try {
 			for (int i = 0; i < 4; i++)  {
@@ -258,20 +267,23 @@ public class RoomHandler implements PacketHandler {
 		String stringContent = IOUtils.toString(content, "UTF-8");
 		JSONArray array = new JSONArray(stringContent);
 		String username = array.getJSONObject(0).getString("username");
-		IDs[0] = username;		
+		IDs[i] = username;		
 			}
 			}
 			} catch (URISyntaxException | IOException e) {
 			e.printStackTrace();
 		}
 			if (scores[0][1] != 0){
-				bot.bancho.sendMessage("#multiplayer", "1st Place "+ IDs[0]+" "+ modList[ (int) scores[0][2] ]+" "+scores[0][3]+"% PP:"+scores[0][4]);				
-			}
-			if (scores[1][1] != 0){
-			bot.bancho.sendMessage("#multiplayer", "2nd Place "+ IDs[1]+" "+ modList[ (int) scores[1][2] ]+" "+scores[0][3]+"% PP:"+scores[1][4]);
+				if (IDs[0] != null)
+				bot.bancho.sendMessage("#multiplayer", "1st Place "+ IDs[0]+" "+ modList[ (int) scores[0][2] ]+" "+ (int) scores[0][5]+"/"+ (int) scores[0][6]+"/"+ (int) scores[0][7]+"/"+ (int) scores[0][8]+" ("+ (int) scores[0][9]+"/"+ (int) scores[0][10]+") "+ String.format("%.02f", scores[0][3]*100)+"% PP:"+ String.format("%.02f", scores[0][4]));				
 			}
 			if (scores[2][1] != 0){
-			bot.bancho.sendMessage("#multiplayer", "3rd Place "+ IDs[2]+" "+ modList[ (int) scores[2][2] ]+" "+scores[0][3]+"% PP:"+scores[2][4]);
+				if (IDs[1] != null)
+			bot.bancho.sendMessage("#multiplayer", "2nd Place "+ IDs[1]+" "+ modList[ (int) scores[2][2] ]+" "+ (int) scores[2][5]+"/"+ (int) scores[2][6]+"/"+ (int) scores[2][7]+"/"+ (int) scores[2][8]+" ("+ (int) scores[2][9]+"/"+ (int) scores[2][10]+") "+ String.format("%.02f", scores[2][3]*100)+"% PP:"+ String.format("%.02f", scores[1][4]));
+			}
+				if (IDs[2] != null)
+			if (scores[2][1] != 0){
+			bot.bancho.sendMessage("#multiplayer", "3rd Place "+ IDs[2]+" "+ modList[ (int) scores[2][2] ]+" "+ (int) scores[2][5]+"/"+ (int) scores[2][6]+"/"+ (int) scores[2][7]+"/"+ (int) scores[2][8]+" ("+ (int) scores[2][9]+"/"+ (int) scores[2][10]+") "+ String.format("%.02f", scores[2][3]*100)+"% PP:"+ String.format("%.02f", scores[2][4]));
 			}
 		}
 	}
@@ -317,8 +329,9 @@ public class RoomHandler implements PacketHandler {
 	}
 
 	public void onBeatmapAdded(Beatmap beatmap, int bID) {
-		bot.bancho.sendMessage("#multiplayer", String.format("Added %s - %s [%s] mapped by %s",
-				beatmap.getArtist(), beatmap.getTitle(), beatmap.getVersion(), beatmap.getCreator()));
+		String result2 = "[http://osu.ppy.sh/b/"+bID+" Link]";
+		bot.bancho.sendMessage("#multiplayer", String.format("Added %s - %s [%s] - [ %s* ] || "+ result2 +" || Mapped by %s",
+				beatmap.getArtist(), beatmap.getTitle(), beatmap.getVersion(), beatmap.getDiff(), beatmap.getCreator()));
 		if (bot.beatmaps.getBeatmap() == null) {
 			MultiplayerHandler mp = bot.bancho.getMultiplayerHandler();
 			mp.setBeatmap(bot.beatmaps.nextBeatmap());
@@ -346,18 +359,15 @@ public class RoomHandler implements PacketHandler {
 					}
 					Performance perf = cbp.getPerformance(cbp.getMaxCombo(),0,0,0);
 					long ssNOMOD = ((long) perf.getPerformance());
-					lt.ekgame.beatmap_analyzer.Beatmap cbp2 = cbp;
-					lt.ekgame.beatmap_analyzer.Beatmap cbp3 = cbp;
-			  		lt.ekgame.beatmap_analyzer.Beatmap cbp4 = cbp;
+					lt.ekgame.beatmap_analyzer.Beatmap cbp2 = cbp.applyMods(new Mods(Mod.HIDDEN));
+					lt.ekgame.beatmap_analyzer.Beatmap cbp3 = cbp.applyMods(new Mods(Mod.HARDROCK));
+			  		lt.ekgame.beatmap_analyzer.Beatmap cbp4 = cbp.applyMods(new Mods(Mod.HIDDEN,Mod.HARDROCK));
 
-					cbp2 = cbp2.applyMods(new Mods(Mod.HIDDEN));
-					Performance perf2 = cbp2.getPerformance(cbp.getMaxCombo(),0,0,0);
+					Performance perf2 = cbp2.getPerformance(cbp2.getMaxCombo(),0,0,0);
 					long ssHIDDEN = ((long) perf2.getPerformance());
-					cbp3 = cbp3.applyMods(new Mods(Mod.HARDROCK));
-					Performance perf3 = cbp3.getPerformance(cbp.getMaxCombo(),0,0,0);
+					Performance perf3 = cbp3.getPerformance(cbp3.getMaxCombo(),0,0,0);
 					long ssHR = ((long) perf3.getPerformance());
-					cbp4 = cbp4.applyMods(new Mods(Mod.HIDDEN,Mod.HARDROCK));
-					Performance perf4 = cbp4.getPerformance(cbp.getMaxCombo(),0,0,0);
+					Performance perf4 = cbp4.getPerformance(cbp4.getMaxCombo(),0,0,0);
 					long ssHDHR = ((long) perf4.getPerformance());
 					bot.bancho.sendMessage("#multiplayer","NOMOD: "+ssNOMOD+"pp || HD: "+ssHIDDEN+"pp || HR: "+ssHR+"pp || HDHR: "+ssHDHR+"pp");
 					
